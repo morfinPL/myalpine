@@ -1,0 +1,9 @@
+language: minimal
+
+services:
+  - docker
+
+script:
+  - docker pull morfin/myalpine > /dev/null
+  - docker run --name myalpine -d -ti morfin/myalpine /bin/bash
+  - docker exec -ti myalpine /bin/bash -c "gcc -v; cmake -version;echo import cv2 > cv.py; echo print\(\'OpenCV \' + cv2.__version__\) >> cv.py; python3 cv.py"
