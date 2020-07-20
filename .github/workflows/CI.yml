@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  Versions:
+    runs-on: ubuntu-latest
+    container: morfin/myalpine
+    steps:
+      - uses: actions/checkout@v2
+      - name: gcc
+        run: gcc -v
+      - name: CMake
+        run: cmake -version
+      - name: OpenCV
+        run: |
+          echo import cv2 > cv.py
+          echo print\(\'OpenCV \' + cv2.__version__\) >> cv.py
+          python3 cv.py
