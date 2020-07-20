@@ -1,4 +1,4 @@
-# Docker file [![Build Status](https://travis-ci.com/morfinPL/myalpine.svg?branch=master)](https://travis-ci.com/morfinPL/myalpine) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+# Docker file ![CI](https://github.com/morfinPL/myalpine/workflows/CI/badge.svg) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 Linux Alpine with:
 - GCC 9.2.0,
