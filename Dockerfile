@@ -1,4 +1,5 @@
-FROM alpine:3.11 as builder
+ARG ALPINE_VERSION
+FROM alpine:$ALPINE_VERSION as builder
 
 RUN apk add --quiet --no-cache \
   build-base \
@@ -9,18 +10,20 @@ RUN apk add --quiet --no-cache \
   mpfr-dev \
   texinfo \
   zlib-dev
-RUN wget -q https://ftp.gnu.org/gnu/gcc/gcc-9.2.0/gcc-9.2.0.tar.gz && \
-  tar -xzf gcc-9.2.0.tar.gz && \
-  rm -f gcc-9.2.0.tar.gz
 
-WORKDIR /gcc-9.2.0
+ARG GCC_VERSION
+RUN wget -q https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.gz && \
+  tar -xzf gcc-$GCC_VERSION.tar.gz && \
+  rm -f gcc-$GCC_VERSION.tar.gz
+
+WORKDIR /gcc-$GCC_VERSION
 
 RUN ./configure \
   --prefix=/usr/local \
   --build=$(uname -m)-alpine-linux-musl \
   --host=$(uname -m)-alpine-linux-musl \
   --target=$(uname -m)-alpine-linux-musl \
-  --with-pkgversion="Alpine 9.2.0" \
+  --with-pkgversion="Alpine $GCC_VERSION" \
   --enable-checking=release \
   --disable-fixed-point \
   --disable-libmpx \
@@ -43,7 +46,7 @@ RUN ./configure \
 RUN make --silent -j$(nproc)
 RUN make --silent -j$(nproc) install-strip
 
-FROM alpine:3.11
+FROM alpine:$ALPINE_VERSION
 
 RUN apk add --quiet --no-cache \
   autoconf \
@@ -51,9 +54,10 @@ RUN apk add --quiet --no-cache \
   binutils \
   cmake \
   file \
+  ffmpeg-dev \
   git \
   gmp \
-  isl \
+  isl-dev \
   libc-dev \
   libffi-dev \
   libjpeg-turbo-dev \
@@ -75,8 +79,6 @@ RUN apk add --quiet --no-cache \
   pkgconf \
   zlib-dev \
   isl-dev \
-  python \
-  python-dev \
   python3 \
   python3-dev
 
@@ -92,41 +94,72 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 
 # Pip upgrade
 RUN python -m pip install pip --upgrade
-RUN python3 -m pip install pip --upgrade
 
 #Install virtualenv
 RUN python -m pip install virtualenv
-RUN python3 -m pip install virtualenv
 
 # Install PyTest
 RUN python -m pip install pytest
-RUN python3 -m pip install pytest
 
 # Install NumPy
 RUN ln -s /usr/include/locale.h /usr/include/xlocale.h
 RUN python -m pip install numpy
-RUN python3 -m pip install numpy
 
-# Install CMake 3.16.4
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4.zip &> /dev/null && \
-  unzip cmake-3.16.4.zip &> /dev/null && \
-  rm cmake-3.16.4.zip && \
-  mv cmake-3.16.4 cmake && \
+
+# Install CMake
+ARG CMAKE_VERSION
+RUN wget https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION.zip &> /dev/null && \
+  unzip cmake-$CMAKE_VERSION.zip &> /dev/null && \
+  rm cmake-$CMAKE_VERSION.zip && \
+  mv cmake-$CMAKE_VERSION cmake && \
   cd cmake && \
   mkdir build && \
   cd build && \
   cmake .. &> /dev/null && \
-  make -j$(nproc) && make install && cd ../.. && rm -rf cmake
+  make -j`nproc` && make install && cd ../.. && rm -rf cmake
 
-# Install OpenCV 4.2.0
-RUN git clone https://github.com/opencv/opencv_contrib.git &> /dev/null && \
+ARG BUILD_TYPE
+
+# Install OpenCV
+ARG BUILD_OPENCV
+ARG OPENCV_VERSION
+RUN if [[ "$BUILD_OPENCV" == "ON" ]] && [ "$BUILD_TYPE" == "DEBUG" -o "$BUILD_TYPE" == "RELEASE_DEBUG" ] ; then \
+  git clone https://github.com/opencv/opencv_contrib.git &> /dev/null && \
   cd opencv_contrib && \
-  git checkout 4.2.0 &> /dev/null && \
+  git checkout $OPENCV_VERSION &> /dev/null && \
   cd .. && \
-  git clone https://github.com/Itseez/opencv.git &> /dev/null && \
+  git clone https://github.com/opencv/opencv.git &> /dev/null && \
   cd opencv && \
-  git checkout 4.2.0 &> /dev/null && \
-  mkdir buildD && mkdir buildR && \
+  git checkout $OPENCV_VERSION &> /dev/null && \
+  mkdir buildD && \
+  cd buildD && \
+  cmake \
+  -D CMAKE_BUILD_TYPE=DEBUG  \
+  -D CMAKE_INSTALL_PREFIX=/usr/local \
+  -D INSTALL_PYTHON_EXAMPLES=OFF \
+  -D INSTALL_C_EXAMPLES=OFF \
+  -D WITH_FFMPEG=ON \
+  -D WITH_TBB=ON \
+  -D INSTALL_PYTHON_EXAMPLES=OFF \
+  -D BUILD_EXAMPLES=OFF \
+  -D BUILD_DOCS=OFF \
+  -D BUILD_PERF_TESTS=OFF \
+  -D BUILD_TESTS=OFF \
+  -D BUILD_opencv_apps=OFF \
+  -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+  -D PYTHON_EXECUTABLE=/usr/local/bin/python -S .. -B . && \
+  make -j`nproc` && make install && cd ../.. && \
+  cp -p $(find /usr/local/lib/python3.10/site-packages -name cv2.*.so) \
+  /usr/lib/python3.10/site-packages/cv2.so && cd ../.. && rm -rf opencv opencv_contrib ; fi
+RUN if [[ "$BUILD_OPENCV" == "ON" ]] && [ "$BUILD_TYPE" == "RELEASE" -o "$BUILD_TYPE" == "RELEASE_DEBUG" ] ; then \
+  git clone https://github.com/opencv/opencv_contrib.git &> /dev/null && \
+  cd opencv_contrib && \
+  git checkout $OPENCV_VERSION &> /dev/null && \
+  cd .. && \
+  git clone https://github.com/opencv/opencv.git &> /dev/null && \
+  cd opencv && \
+  git checkout $OPENCV_VERSION &> /dev/null && \
+  mkdir buildR && \
   cd buildR && \
   cmake \
   -D CMAKE_BUILD_TYPE=RELEASE  \
@@ -140,21 +173,35 @@ RUN git clone https://github.com/opencv/opencv_contrib.git &> /dev/null && \
   -D BUILD_DOCS=OFF \
   -D BUILD_PERF_TESTS=OFF \
   -D BUILD_TESTS=OFF \
+  -D BUILD_opencv_apps=OFF \
   -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
-  -D PYTHON_EXECUTABLE=/usr/local/bin/python .. && \
-  make -j$(nproc) && make install && cd ../.. && \
-  cp -p $(find /usr/local/lib/python3.8/site-packages -name cv2.*.so) \
-  /usr/lib/python3.8/site-packages/cv2.so && rm -rf opencv opencv_contrib
+  -D PYTHON_EXECUTABLE=/usr/local/bin/python -S .. -B . && \
+  make -j`nproc` && make install && cd ../.. && \
+  cp -p $(find /usr/local/lib/python3.10/site-packages -name cv2.*.so) \
+  /usr/lib/python3.10/site-packages/cv2.so && cd ../.. && rm -rf opencv opencv_contrib ; fi
 
-# Install Catch v2.11.1
-# RUN git clone https://github.com/catchorg/Catch2.git &> /dev/null && \
-#   cd Catch2 && \
-#   git checkout v2.11.1 &> /dev/null && \
-#   cd .. && \
-#   mkdir build && \
-#   cd build && \
-#   cmake ../Catch2 && \
-#   make -j$(nproc) && make install && cd .. && \
-#   cd -D CMAKE_BUILD_TYPE=RELEASE .. && rm -rf Catch2 build
+# Install Catch
+ARG BUILD_CATCH
+ARG CATCH_VERSION
+RUN if [[ "$BUILD_CATCH" == "ON" ]] && [ "$BUILD_TYPE" == "DEBUG" -o "$BUILD_TYPE" == "RELEASE_DEBUG" ] ; then \
+  git clone https://github.com/catchorg/Catch2.git &> /dev/null && \
+  cd Catch2 && \
+  git checkout $CATCH_VERSION &> /dev/null && cd .. && \
+  mkdir buildD && \
+  cd buildD && \
+  cmake -D CMAKE_BUILD_TYPE=RELEASE \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
+    ../Catch2 && \
+  make -j`nproc` && make install && cd .. && rm -rf Catch2 buildD ; fi
+RUN if [[ "$BUILD_CATCH" == "ON" ]] && [ "$BUILD_TYPE" == "RELEASE" -o "$BUILD_TYPE" == "RELEASE_DEBUG" ] ; then \
+  git clone https://github.com/catchorg/Catch2.git &> /dev/null && \
+  cd Catch2 && \
+  git checkout $CATCH_VERSION &> /dev/null && cd .. && \
+  mkdir buildR && \
+  cd buildR && \
+  cmake -D CMAKE_BUILD_TYPE=RELEASE \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
+    ../Catch2 && \
+  make -j`nproc` && make install && cd .. && rm -rf Catch2 buildR ; fi
 
 WORKDIR /src

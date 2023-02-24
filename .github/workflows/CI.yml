@@ -10,15 +10,45 @@ on:
 jobs:
   Versions:
     runs-on: ubuntu-latest
-    container: morfin/myalpine
+    container: morfin/myalpine:3.17.2_CMake_3.25.2_OpenCV_4.7.0_Catch_v3.3.1_Release
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: gcc
         run: gcc -v
       - name: CMake
         run: cmake -version
-      - name: OpenCV
+      - name: OpenCV Python
         run: |
           echo import cv2 > cv.py
           echo print\(\'OpenCV \' + cv2.__version__\) >> cv.py
           python3 cv.py
+          rm cv.py
+      - name: OpenCV C++
+        run: |
+          mkdir OpenCVTest
+          cd OpenCVTest
+          echo project\(OpenCVTest\) > CMakeLists.txt
+          echo cmake_minimum_required\(VERSION 3.25\) >> CMakeLists.txt
+          echo find_package\(OpenCV REQUIRED\) >> CMakeLists.txt
+          echo message\(\"OpenCV_VERSION: \${OpenCV_VERSION}\"\) >> CMakeLists.txt
+          echo message\(\"OpenCV_SHARED: \${OpenCV_SHARED}\"\) >> CMakeLists.txt
+          echo message\(\"OpenCV_INSTALL_PATH: \${OpenCV_INSTALL_PATH}\"\) >> CMakeLists.txt
+          echo message\(\"OpenCV_INCLUDE_DIRS: \${OpenCV_INCLUDE_DIRS}\"\) >> CMakeLists.txt
+          echo message\(\"OpenCV_COMPUTE_CAPABILITIES: \${OpenCV_COMPUTE_CAPABILITIES}\"\) >> CMakeLists.txt
+          echo message\(\"OpenCV_LIB_COMPONENTS: \${OpenCV_LIB_COMPONENTS}\"\) >> CMakeLists.txt
+          cmake .
+          cd ..
+          rm -rf OpenCVTest
+      - name: Catch2 C++
+        run: |
+          mkdir Catch2Test
+          cd Catch2Test
+          echo project\(Catch2Test\) > CMakeLists.txt
+          echo cmake_minimum_required\(VERSION 3.25\) >> CMakeLists.txt
+          echo find_package\(Catch2 REQUIRED\) >> CMakeLists.txt
+          echo message\(\"Catch2_VERSION: \${Catch2_VERSION}\"\) >> CMakeLists.txt
+          echo get_property\(Catch2_TARGETS DIRECTORY \"\${CMAKE_SOURCE_DIR}\" PROPERTY IMPORTED_TARGETS\) >> CMakeLists.txt
+          echo message\(\"Catch2_TARGETS: \${Catch2_TARGETS}\"\) >> CMakeLists.txt
+          cmake .
+          cd ..
+          rm -rf Catch2Test
