@@ -147,10 +147,14 @@ RUN if [[ "$BUILD_OPENCV" == "ON" ]] && [ "$BUILD_TYPE" == "DEBUG" -o "$BUILD_TY
   -D BUILD_TESTS=OFF \
   -D BUILD_opencv_apps=OFF \
   -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
-  -D PYTHON_EXECUTABLE=/usr/local/bin/python -S .. -B . && \
+  -D BUILD_opencv_python2=OFF \
+  -D PYTHON3_INCLUDE_DIR=$(python3 -c 'from distutils.sysconfig import get_python_inc; print(get_python_inc())') \
+  -D PYTHON3_PACKAGES_PATH=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())') \
+  -D PYTHON3_EXECUTABLE=$(which python3) \
+  -D PYTHON_DEFAULT_EXECUTABLE=$(which python3) \
+  -S .. -B . ; \
   make -j`nproc` && make install && cd ../.. && \
-  cp -p $(find /usr/local/lib/python3.10/site-packages -name cv2.*.so) \
-  /usr/lib/python3.10/site-packages/cv2.so && cd ../.. && rm -rf opencv opencv_contrib ; fi
+  rm -rf opencv opencv_contrib ; fi
 RUN if [[ "$BUILD_OPENCV" == "ON" ]] && [ "$BUILD_TYPE" == "RELEASE" -o "$BUILD_TYPE" == "RELEASE_DEBUG" ] ; then \
   git clone https://github.com/opencv/opencv_contrib.git &> /dev/null && \
   cd opencv_contrib && \
@@ -175,10 +179,14 @@ RUN if [[ "$BUILD_OPENCV" == "ON" ]] && [ "$BUILD_TYPE" == "RELEASE" -o "$BUILD_
   -D BUILD_TESTS=OFF \
   -D BUILD_opencv_apps=OFF \
   -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
-  -D PYTHON_EXECUTABLE=/usr/local/bin/python -S .. -B . && \
+  -D BUILD_opencv_python2=OFF \
+  -D PYTHON3_INCLUDE_DIR=$(python3 -c 'from distutils.sysconfig import get_python_inc; print(get_python_inc())') \
+  -D PYTHON3_PACKAGES_PATH=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())') \
+  -D PYTHON3_EXECUTABLE=$(which python3) \
+  -D PYTHON_DEFAULT_EXECUTABLE=$(which python3) \
+  -S .. -B . ; \
   make -j`nproc` && make install && cd ../.. && \
-  cp -p $(find /usr/local/lib/python3.10/site-packages -name cv2.*.so) \
-  /usr/lib/python3.10/site-packages/cv2.so && cd ../.. && rm -rf opencv opencv_contrib ; fi
+  rm -rf opencv opencv_contrib ; fi
 
 # Install Catch
 ARG BUILD_CATCH
@@ -189,7 +197,7 @@ RUN if [[ "$BUILD_CATCH" == "ON" ]] && [ "$BUILD_TYPE" == "DEBUG" -o "$BUILD_TYP
   git checkout $CATCH_VERSION &> /dev/null && cd .. && \
   mkdir buildD && \
   cd buildD && \
-  cmake -D CMAKE_BUILD_TYPE=RELEASE \
+  cmake -D CMAKE_BUILD_TYPE=DEBUG \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
     ../Catch2 && \
   make -j`nproc` && make install && cd .. && rm -rf Catch2 buildD ; fi

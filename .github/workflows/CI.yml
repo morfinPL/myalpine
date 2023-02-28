@@ -2,11 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   Versions:
     runs-on: ubuntu-latest
@@ -15,8 +14,10 @@ jobs:
       - uses: actions/checkout@v3
       - name: gcc
         run: gcc -v
+      - name: Python
+        run: python3 --version
       - name: CMake
-        run: cmake -version
+        run: cmake --version
       - name: OpenCV Python
         run: |
           echo import cv2 > cv.py
